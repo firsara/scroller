@@ -3,12 +3,11 @@
   
   // default options
   var opts = {
-    images: [],
-    preload: .25,
-    base: 'javascripts/scroller/',
-    speed: 1,
-    blend: 10,
-    multiplier: 1,
+    images: [], // scroller-images
+    preload: .25, // preload friction
+    speed: 1, // scroll-speed
+    blend: 10, // parallax blending
+    multiplier: 1, // multiply frames by
     loading: null, // loading update callback function
     ready: null, // initialize callback function
     update: null, // update scroller frame position
@@ -32,17 +31,11 @@
   var resources = [];
   var imgCount = Math.floor( scroller.options.images.length * scroller.options.preload );
 
-  // Load all images in IE at the beginning
-  /*
-  if ($.browser.msie) {
-    imgCount = scroller.options.images.length;
-  }
-  */
-  
   for (var i = 0; i < imgCount; i++) {
     resources.push(scroller.options.images[i]);
   }
   
+  // load initial resources
   $.resource(resources, scroller.options.loading, function(duration){
     scroller.initialize();
     
@@ -94,17 +87,14 @@ var app = (function($, self){
     $(document).bind('keydown', keyup);
 
 
-    //if (! $.browser.msie) {
-      // Load rest of images
-      var imgCount = Math.floor( opts.images.length * opts.preload );
-      var resources = [];
-      
-      for (var i = imgCount; i < opts.images.length; i++) {
-        resources.push(scroller.options.images[i]);
-      }
+    var imgCount = Math.floor( opts.images.length * opts.preload );
+    var resources = [];
+    
+    for (var i = imgCount; i < opts.images.length; i++) {
+      resources.push(scroller.options.images[i]);
+    }
 
-      $.resource(resources, function(){}, function(){});
-    //}
+    $.resource(resources, function(){}, function(){});
 
     opts.blend *= opts.multiplier;
     opts.blend = Math.round(opts.blend);
@@ -113,6 +103,8 @@ var app = (function($, self){
   };
   
   
+
+  /* SET SCROLLER TO A SPECIFIC FRAME */
   var updateTimeout = null;
 
   self.to = function(index){
@@ -133,35 +125,69 @@ var app = (function($, self){
   };
 
 
-  var pseudoParseJson = function(data){
-    var params = {};
 
-    if (data.indexOf('{') === 0) {
-      data = data.substring(1).substring(0, data.length - 2);
+  /* ANIMATE TO THE END OF SCROLLER */
+  /* ------------------------------ */
+  self.play = function(speed){
+    self.animate(store.count - 1);
+  };
+  
+
+
+  /* ANIMATE TO A SPECIFIC FRAME */
+  /* ___________________________ */
+  var animateToIndex = null;
+  var animationInterval = null;
+  var animateDirection = null;
+  var locked = false;
+  
+  self.animate = function(index){
+    index = parseInt( index );
+    index *= opts.multiplier;
+    index = Math.round(index);
+
+    if (store.index == index) { return; }
+    if (locked) { return; }
+    locked = true;
+    animateToIndex = index;
+    
+    if (store.index > animateToIndex) {
+      animateDirection = -1;
+    } else {
+      animateDirection = 1;
     }
 
-    var options = data.split(',');
-    var i, values, key, val;
-
-    for (i = 0; i < options.length; i++) {
-      key = options[i].substring(0, options[i].indexOf(':'));
-      val = options[i].substring(options[i].indexOf(':')+1);
-
-      key = $.trim(key);
-      val = $.trim(val);
-
-      if (val.indexOf('{') === 0) {
-        val = pseudoParseJson(val);
-      } else {
-        val = eval(val);
+    if (animateDirection == 1) {
+      if (Math.abs(animateToIndex - store.index) > Math.abs(store.count + store.index - animateToIndex)) {
+        animateDirection = -1;
       }
-
-      params[key] = val;
+    } else if (animateDirection == -1 && store.index >= store.count / 2) {
+      if (Math.abs(animateToIndex - store.index) > Math.abs(store.count + store.index - animateToIndex)) {
+        animateDirection = 1;
+      }
     }
 
-    return params;
+    animationInterval = window.setInterval(doAnimate, 25);
+    
+    if (store.speed) {
+      opts.speed = store.speed;
+    }
+  };
+  
+  var doAnimate = function(){
+    add(animateDirection);
+    
+    if (store.index == animateToIndex) {
+      window.clearInterval(animationInterval);
+      animationInterval = null;
+      animateToIndex = null;
+      locked = false;
+    }
   };
 
+
+
+  // get type of a specific css value
   var type = function(val){
     val = val.toString();
 
@@ -180,12 +206,14 @@ var app = (function($, self){
     return '';
   };
 
+  // remove type (i.e. %, em, etc.) from css value
   var convert = function(val){
     val = val.toString();
     return parseFloat( val.replace(type(val), '') );
   };
 
 
+  // update navigation and parallax items based on frame
   var updateViewport = function(){
     clearTimeout(updateTimeout);
     updateTimeout = null;
@@ -266,95 +294,42 @@ var app = (function($, self){
       opts.update(store.index, store.count);
     }
   };
-  
-  
-  
-  self.play = function(speed){
-    self.animate(store.count - 1);
-  };
-  
-  
-  
-  
-  
-  
-  var animateToIndex = null;
-  var animationInterval = null;
-  var animateDirection = null;
-  var locked = false;
-  
-  self.animate = function(index){
-    index = parseInt( index );
-    index *= opts.multiplier;
-    index = Math.round(index);
-
-    if (store.index == index) { return; }
-    if (locked) { return; }
-    locked = true;
-    animateToIndex = index;
-    
-    if (store.index > animateToIndex) {
-      animateDirection = -1;
-    } else {
-      animateDirection = 1;
-    }
-
-    if (animateDirection == 1) {
-      if (Math.abs(animateToIndex - store.index) > Math.abs(store.count + store.index - animateToIndex)) {
-        animateDirection = -1;
-      }
-    } else if (animateDirection == -1 && store.index >= store.count / 2) {
-      if (Math.abs(animateToIndex - store.index) > Math.abs(store.count + store.index - animateToIndex)) {
-        animateDirection = 1;
-      }
-    }
-
-    animationInterval = window.setInterval(doAnimate, 25);
-    
-    if (store.speed) {
-      opts.speed = store.speed;
-    }
-  };
-  
-  var doAnimate = function(){
-    add(animateDirection);
-    
-    if (store.index == animateToIndex) {
-      window.clearInterval(animationInterval);
-      animationInterval = null;
-      animateToIndex = null;
-      locked = false;
-    }
-  };
 
 
 
 
 
-  
+
+
+
+  // move scroller by friction
   var add = function(friction){
     if (isNaN(friction)) { return; }
     
     store.y += (friction / opts.speed);
-    //console.log(store.y);
     self.to(Math.floor( store.y ));
   };
   
   
+  // mousewheel-scroll
   var wheel = function(event, delta, deltaX, deltaY){
     if (locked) { return; }
     add(deltaY * -1);
   };
   
+  // drag-scroll
   var move = function(event){
     if (locked) { return; }
     add(event.y / -10);
   };
   
+  // keyboard-scroll
   var keyup = function(event){
     if (event.keyCode == 40) {
+      event.preventDefault();
       add(1);
     } else if (event.keyCode == 38) {
+      event.preventDefault();
       add(-1);
     }
   };
