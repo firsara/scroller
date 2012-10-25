@@ -299,11 +299,11 @@ var app = (function($, self){
       animateDirection = 1;
     }
 
-    if (animateDirection == 1) {
+    if (animateDirection == 1) {
       if (Math.abs(animateToIndex - store.index) > Math.abs(store.count + store.index - animateToIndex)) {
         animateDirection = -1;
       }
-    } else if (animateDirection == -1 && store.index >= store.count / 2) {
+    } else if (animateDirection == -1 && store.index >= store.count / 2) {
       if (Math.abs(animateToIndex - store.index) > Math.abs(store.count + store.index - animateToIndex)) {
         animateDirection = 1;
       }
